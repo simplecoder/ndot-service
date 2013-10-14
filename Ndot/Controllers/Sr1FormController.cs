@@ -4,8 +4,11 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Web.Http;
 using Microsoft.Practices.EnterpriseLibrary.Logging;
+using MongoDB.Bson;
 using MongoRepository;
 using Ndot.Helpers;
 using Ndot.Models;
@@ -34,76 +37,99 @@ namespace Ndot.Controllers
             return results;
         }
 
-        public string Post(Sr1ClientFormData data)
+        [Authorize]
+        public Sr1FormData Get(string id)
         {
-            _logger.Write("Received new SR1 Form");
-            try
-            {
-                var form = new Sr1FormData
-                    {
-                        Street = data.Street,
-                        City = data.City,
-                        County = data.County,
-                        CreatedDate = DateTime.Now,
-                        Actors = new List<Actor>()
-                    };
+            return _repository.Collection.FindOneByIdAs<Sr1FormData>(new ObjectId(id));
+        }
 
-                IBarcodeReader reader = new BarcodeReader
-                    {
-                        TryHarder = true,
-                        PossibleFormats = new List<BarcodeFormat> { BarcodeFormat.PDF_417 }
-                    };
+        public HttpResponseMessage Post(Sr1ClientFormData clientFormData)
+        {
+            _logger.Write("New Form Received");
 
-                foreach (var clientActor in data.Actors)
+            ValidateClientFormData(clientFormData);
+
+            var form = new Sr1FormData
                 {
-                    var actor = new Actor { Type = clientActor.ActorType, Driver = new DriverInfo(), Owner = new OwnerInfo() };
-                    if (!String.IsNullOrEmpty(clientActor.DlBarCode))
-                    {
-                        var byteArray = Convert.FromBase64String(clientActor.DlBarCode);
-                        var a = Image.FromStream(new MemoryStream(byteArray));
-                        a.Save(Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(), Guid.NewGuid() + ".jpg"),
-                                            ImageFormat.Jpeg);
-                        var bmp = (Bitmap)a;
+                    Street = clientFormData.Street,
+                    City = clientFormData.City,
+                    County = clientFormData.County,
+                    CreatedDate = DateTime.Now,
+                    Actors = new List<Actor>()
+                };
 
-                        var barCodeDecoderResult = reader.Decode(bmp);
-                        if (barCodeDecoderResult != null)
-                        {
-                            var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
-                            actor.Driver = GetDriverInfoFromDlData(dlData, clientActor);
-                        }    
-                    }
-                    
+            IBarcodeReader reader = new BarcodeReader
+                {
+                    TryHarder = true,
+                    PossibleFormats = new List<BarcodeFormat> { BarcodeFormat.PDF_417 }
+                };
 
-                    if (!String.IsNullOrEmpty(clientActor.Vin))
-                    {
-                        var vinData = _apiAgent.GetVinData(clientActor.Vin);
-                        actor.Driver.Year = vinData.Year;
-                        actor.Driver.Make = vinData.Make;
-                        actor.Driver.BodyType = vinData.BodyType;    
-                    }
-                    
-                    if (!clientActor.OwnerSameAsDriver && !String.IsNullOrEmpty(clientActor.DlBarCodeOwner))
-                    {
-                        var byteArray = Convert.FromBase64String(clientActor.DlBarCodeOwner);
-                        var bmp = (Bitmap)Image.FromStream(new MemoryStream(byteArray));
-                        var barCodeDecoderResult = reader.Decode(bmp);
-                        if (barCodeDecoderResult != null)
-                        {
-                            var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
-                            actor.Owner = GetOwnerInfoFromDlData(dlData);
-                        }
-                    }
-                    form.Actors.Add(actor);
-                }
-
-                _repository.Add(form);
-            }
-            catch (Exception e)
+            foreach (var clientActor in clientFormData.Actors)
             {
-                _logger.Write(e);
+                var actor = new Actor { Type = clientActor.ActorType, Driver = new DriverInfo(), Owner = new OwnerInfo() };
+                if (!String.IsNullOrEmpty(clientActor.DlBarCode))
+                {
+                    var byteArray = Convert.FromBase64String(clientActor.DlBarCode);
+                    var a = Image.FromStream(new MemoryStream(byteArray));
+                    a.Save(Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(), Guid.NewGuid() + ".jpg"),
+                                        ImageFormat.Jpeg);
+                    var bmp = (Bitmap)a;
+
+                    var barCodeDecoderResult = reader.Decode(bmp);
+                    if (barCodeDecoderResult != null)
+                    {
+                        var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
+                        actor.Driver = GetDriverInfoFromDlData(dlData, clientActor);
+                    }    
+                }
+                    
+
+                if (!String.IsNullOrEmpty(clientActor.Vin))
+                {
+                    var vinData = _apiAgent.GetVinData(clientActor.Vin);
+                    actor.Driver.Year = vinData.Year;
+                    actor.Driver.Make = vinData.Make;
+                    actor.Driver.BodyType = vinData.BodyType;    
+                }
+                    
+                if (!clientActor.OwnerSameAsDriver && !String.IsNullOrEmpty(clientActor.DlBarCodeOwner))
+                {
+                    var byteArray = Convert.FromBase64String(clientActor.DlBarCodeOwner);
+                    var bmp = (Bitmap)Image.FromStream(new MemoryStream(byteArray));
+                    var barCodeDecoderResult = reader.Decode(bmp);
+                    if (barCodeDecoderResult != null)
+                    {
+                        var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
+                        actor.Owner = GetOwnerInfoFromDlData(dlData);
+                    }
+                }
+                form.Actors.Add(actor);
             }
 
-            return "this be sr1";
+            _repository.Add(form);
+
+            var response = Request.CreateResponse(HttpStatusCode.Created, form);
+            var url = Url.Link("DefaultApi", new {id = form.Id});
+            response.Headers.Location = new Uri(url);
+            return response;
+        }
+
+        private void ValidateClientFormData(Sr1ClientFormData clientFormData)
+        {
+            if (clientFormData == null)
+                throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
+
+            if (String.IsNullOrEmpty(clientFormData.Street))
+                throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
+
+            if (String.IsNullOrEmpty(clientFormData.City))
+                throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
+
+            if (String.IsNullOrEmpty(clientFormData.County))
+                throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
+
+            if (clientFormData.Actors == null || !clientFormData.Actors.Any())
+                throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
         }
 
         private static Sr1FormData GetTestForm()
