@@ -22,6 +22,15 @@ namespace Ndot.Models
         public string DlBarCode { get; set; }
         public bool OwnerSameAsDriver { get; set; }
         public string DlBarCodeOwner { get; set; }
+        public bool DlOverride { get; set; }
+        public string LastName { get; set; }
+        public string MiddleName { get; set; }
+        public string FirstName { get; set; }
+        public string Street { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string Zip { get; set; }
+        public string Dob { get; set; }
     }
 
     [JsonObject]

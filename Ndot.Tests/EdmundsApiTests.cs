@@ -12,7 +12,7 @@ namespace Ndot.Tests
         {
             IEdmundsApiAgent apiAgent = new EdmundsApiAgent();
             const string vin = "3N1CB51D13L802315";
-            
+
             var data = apiAgent.GetVinData(vin);
 
             Assert.AreEqual("2003", data.Year);

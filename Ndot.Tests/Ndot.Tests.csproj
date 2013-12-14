@@ -70,6 +70,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="EdmundsApiTests.cs" />
     <Compile Include="Sr1FormControllerTests.cs" />
+    <Compile Include="ValidateDlImageControllerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ndot\Ndot.csproj">
@@ -80,6 +81,9 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="App_Data\" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

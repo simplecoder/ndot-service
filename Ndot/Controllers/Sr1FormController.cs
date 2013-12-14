@@ -46,67 +46,81 @@ namespace Ndot.Controllers
         public HttpResponseMessage Post(Sr1ClientFormData clientFormData)
         {
             _logger.Write("New Form Received");
-
-            ValidateClientFormData(clientFormData);
-
-            var form = new Sr1FormData
-                {
-                    Street = clientFormData.Street,
-                    City = clientFormData.City,
-                    County = clientFormData.County,
-                    CreatedDate = DateTime.Now,
-                    Actors = new List<Actor>()
-                };
-
-            IBarcodeReader reader = new BarcodeReader
-                {
-                    TryHarder = true,
-                    PossibleFormats = new List<BarcodeFormat> { BarcodeFormat.PDF_417 }
-                };
-
-            foreach (var clientActor in clientFormData.Actors)
+            Sr1FormData form = null;
+            try
             {
-                var actor = new Actor { Type = clientActor.ActorType, Driver = new DriverInfo(), Owner = new OwnerInfo() };
-                if (!String.IsNullOrEmpty(clientActor.DlBarCode))
-                {
-                    var byteArray = Convert.FromBase64String(clientActor.DlBarCode);
-                    var a = Image.FromStream(new MemoryStream(byteArray));
-                    a.Save(Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(), Guid.NewGuid() + ".jpg"),
-                                        ImageFormat.Jpeg);
-                    var bmp = (Bitmap)a;
+                ValidateClientFormData(clientFormData);
 
-                    var barCodeDecoderResult = reader.Decode(bmp);
-                    if (barCodeDecoderResult != null)
+                form = new Sr1FormData
                     {
-                        var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
-                        actor.Driver = GetDriverInfoFromDlData(dlData, clientActor);
-                    }    
-                }
-                    
+                        Street = clientFormData.Street,
+                        City = clientFormData.City,
+                        County = clientFormData.County,
+                        CreatedDate = DateTime.Now,
+                        Actors = new List<Actor>()
+                    };
 
-                if (!String.IsNullOrEmpty(clientActor.Vin))
+                IBarcodeReader reader = new BarcodeReader();
+                reader.Options.TryHarder = true;
+                reader.Options.PossibleFormats = new List<BarcodeFormat> { BarcodeFormat.PDF_417 };
+
+                foreach (var clientActor in clientFormData.Actors)
                 {
-                    var vinData = _apiAgent.GetVinData(clientActor.Vin);
-                    actor.Driver.Year = vinData.Year;
-                    actor.Driver.Make = vinData.Make;
-                    actor.Driver.BodyType = vinData.BodyType;    
-                }
-                    
-                if (!clientActor.OwnerSameAsDriver && !String.IsNullOrEmpty(clientActor.DlBarCodeOwner))
-                {
-                    var byteArray = Convert.FromBase64String(clientActor.DlBarCodeOwner);
-                    var bmp = (Bitmap)Image.FromStream(new MemoryStream(byteArray));
-                    var barCodeDecoderResult = reader.Decode(bmp);
-                    if (barCodeDecoderResult != null)
+                    var actor = new Actor { Type = clientActor.ActorType, Driver = new DriverInfo(), Owner = new OwnerInfo() };
+                    if (clientActor.DlOverride)
                     {
-                        var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
-                        actor.Owner = GetOwnerInfoFromDlData(dlData);
+                        actor.Driver = GetDriverInfoFromOverrideData(clientActor);
                     }
-                }
-                form.Actors.Add(actor);
-            }
+                    if (!String.IsNullOrEmpty(clientActor.DlBarCode))
+                    {
+                        var byteArray = Convert.FromBase64String(clientActor.DlBarCode);
+                        var a = Image.FromStream(new MemoryStream(byteArray));
+                        a.Save(
+                            Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(),
+                                         Guid.NewGuid() + ".jpg"),
+                            ImageFormat.Jpeg);
+                        var bmp = (Bitmap) a;
 
-            _repository.Add(form);
+                        var barCodeDecoderResult = reader.Decode(bmp);
+                        if (barCodeDecoderResult != null)
+                        {
+                            var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
+                            actor.Driver = GetDriverInfoFromDlData(dlData, clientActor);
+                        }
+                    }
+                    else
+                    {}
+                    
+
+                    if (!String.IsNullOrEmpty(clientActor.Vin))
+                    {
+                        var vinData = _apiAgent.GetVinData(clientActor.Vin);
+                        actor.Driver.Vin = clientActor.Vin;
+                        actor.Driver.Year = vinData.Year;
+                        actor.Driver.Make = vinData.Make;
+                        actor.Driver.BodyType = vinData.BodyType;    
+                    }
+                    
+                    if (!clientActor.OwnerSameAsDriver && !String.IsNullOrEmpty(clientActor.DlBarCodeOwner))
+                    {
+                        var byteArray = Convert.FromBase64String(clientActor.DlBarCodeOwner);
+                        var bmp = (Bitmap)Image.FromStream(new MemoryStream(byteArray));
+                        var barCodeDecoderResult = reader.Decode(bmp);
+                        if (barCodeDecoderResult != null)
+                        {
+                            var dlData = DlBarCodeParser.Parse(barCodeDecoderResult.Text);
+                            actor.Owner = GetOwnerInfoFromDlData(dlData);
+                        }
+                    }
+                    form.Actors.Add(actor);
+                }
+
+                _repository.Add(form);
+            }
+            catch (Exception e)
+            {
+                _logger.Write(String.Format("Some Error occurred in Sr1FormController. Exception: {0}", e));
+            }
 
             var response = Request.CreateResponse(HttpStatusCode.Created, form);
             var url = Url.Link("DefaultApi", new {id = form.Id});
@@ -251,5 +265,30 @@ namespace Ndot.Controllers
                     LicensePlateState = clientActor.PlateState
                 };
         }
+
+        
+        private DriverInfo GetDriverInfoFromOverrideData(ClientActor clientActor)
+        {
+            var di = new DriverInfo
+                {
+                    FirstName = clientActor.FirstName,
+                    MiddleName = clientActor.MiddleName,
+                    LastName = clientActor.LastName,
+                    Street = clientActor.Street,
+                    City = clientActor.City,
+                    State = clientActor.State,
+                    Zip = clientActor.Zip
+                };
+
+            try
+            {
+                var dob = DateTime.Parse(clientActor.Dob);
+                di.Dob = dob;
+            }
+            catch (Exception)
+            {}
+            return di;
+        }
+
     }
 }
