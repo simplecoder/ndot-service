@@ -1,9 +1,11 @@
 using System.Web.Http;
+using System.Web.Mvc;
 using Microsoft.Practices.EnterpriseLibrary.Logging;
 using Microsoft.Practices.Unity;
 using MongoRepository;
 using Ndot.Helpers;
 using Ndot.Models;
+using Unity.Mvc4;
 
 namespace Ndot
 {
@@ -14,6 +16,7 @@ namespace Ndot
             var container = BuildUnityContainer();
 
             GlobalConfiguration.Configuration.DependencyResolver = new Unity.WebApi.UnityDependencyResolver(container);
+            DependencyResolver.SetResolver(new UnityDependencyResolver(container));
         }
 
         private static IUnityContainer BuildUnityContainer()

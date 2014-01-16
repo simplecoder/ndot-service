@@ -74,6 +74,7 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Entity" />
+    <Reference Include="System.Device" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
@@ -163,6 +164,9 @@
       <Private>True</Private>
       <HintPath>..\packages\System.Spatial.5.2.0\lib\net40\System.Spatial.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.Mvc4">
+      <HintPath>..\packages\Unity.Mvc4.1.2.0.0\lib\net40\Unity.Mvc4.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.WebApi">
       <HintPath>..\packages\Unity.WebAPI.0.10\lib\net40\Unity.WebApi.dll</HintPath>
     </Reference>
@@ -209,11 +213,9 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-    <Compile Include="Helpers\DebugTextWriter.cs" />
     <Compile Include="Helpers\DlBarCodeParser.cs" />
     <Compile Include="Helpers\IEdmundsApiAgent.cs" />
     <Compile Include="Helpers\ILogger.cs" />
-    <Compile Include="Helpers\ObjectDumper.cs" />
     <Compile Include="MessageHandlers\BasicAuthMessageHandler.cs" />
     <Compile Include="Models\DomainObjects.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -304,6 +306,7 @@
     <Content Include="Scripts\knockout-2.2.0.debug.js" />
     <Content Include="Scripts\knockout-2.2.0.js" />
     <Content Include="Scripts\modernizr-2.6.2.js" />
+    <Content Include="Unity.Mvc4.README.txt" />
     <Content Include="Unity.WebAPI.README.txt" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>

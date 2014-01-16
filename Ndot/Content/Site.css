@@ -754,3 +754,7 @@ tr.pager td {
             margin: 0;
         }
 }
+
+#map-canvas {
+    height: 100%;
+}
