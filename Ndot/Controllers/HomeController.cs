@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Device.Location;
+﻿using System.Configuration;
 using System.Linq;
-using System.Web;
 using System.Web.Mvc;
 using MongoRepository;
 using Ndot.Models;
@@ -20,6 +17,7 @@ namespace Ndot.Controllers
 
         public ActionResult Index()
         {
+            ViewBag.GoogleMapsApiKey = ConfigurationManager.AppSettings["GoogleMapsApiKey"];
             var results = _repository.Collection.FindAllAs<Sr1FormData>().ToList();
             return View(results);
         }

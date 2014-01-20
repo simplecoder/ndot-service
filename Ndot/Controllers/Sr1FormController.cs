@@ -7,10 +7,12 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using Microsoft.AspNet.SignalR;
 using Microsoft.Practices.EnterpriseLibrary.Logging;
 using MongoDB.Bson;
 using MongoRepository;
 using Ndot.Helpers;
+using Ndot.Hubs;
 using Ndot.Models;
 using ZXing;
 
@@ -29,15 +31,14 @@ namespace Ndot.Controllers
             _apiAgent = apiAgent;
         }
 
-        [Authorize]
+        [System.Web.Http.Authorize]
         public IEnumerable<Sr1FormData> Get()
         {
             var results = _repository.Collection.FindAllAs<Sr1FormData>().ToList();
-            results.Add(GetTestForm());
             return results;
         }
 
-        [Authorize]
+        [System.Web.Http.Authorize]
         public Sr1FormData Get(string id)
         {
             return _repository.Collection.FindOneByIdAs<Sr1FormData>(new ObjectId(id));
@@ -56,6 +57,8 @@ namespace Ndot.Controllers
                         Street = clientFormData.Street,
                         City = clientFormData.City,
                         County = clientFormData.County,
+                        Latitude = clientFormData.Latitude,
+                        Longitude = clientFormData.Longitude,
                         CreatedDate = DateTime.Now,
                         Actors = new List<Actor>()
                     };
@@ -116,6 +119,10 @@ namespace Ndot.Controllers
                 }
 
                 _repository.Add(form);
+
+                var hubContext = GlobalHost.ConnectionManager.GetHubContext<IncidentsHub>();
+                hubContext.Clients.All.addNewMarkerToPage(form.Latitude, form.Longitude, 
+                    form.Street, form.CreatedDate.ToString(), form.Actors.Count);
             }
             catch (Exception e)
             {
@@ -146,73 +153,6 @@ namespace Ndot.Controllers
                 throw new HttpResponseException(HttpStatusCode.PreconditionFailed);
         }
 
-        private static Sr1FormData GetTestForm()
-        {
-            return new Sr1FormData
-                {
-                    Id = "1232323",
-                    Street = "123 Elm Street",
-                    City = "Las Vegas",
-                    County = "Clark",
-                    CreatedDate = DateTime.Now,
-                    Actors = new List<Actor>
-                        {
-                            new Actor
-                                {
-                                    Type = "Driver",
-                                    Driver = new DriverInfo
-                                        {
-                                            FirstName = "John",
-                                            MiddleName = "Z",
-                                            LastName = "Xamarin",
-                                            Street = "331 Main St.",
-                                            City = "Las Vegas",
-                                            State = "NV",
-                                            Zip = "89129",
-                                            DriverLicenseNumber = "124234422",
-                                            DriverLicenseState = "NV",
-                                            Dob = new DateTime(1990, 12, 3),
-                                            LicensePlateNumber = "883GWN",
-                                            LicensePlateState = "NV",
-                                            Year = "2002",
-                                            Make = "Nissan Sentra",
-                                            BodyType = "Car",
-                                            Vin = "231XJKJ9934KKJKJDKFJ"
-                                        },
-                                    Owner = new OwnerInfo
-                                        {
-                                            FirstName = "Bon",
-                                            MiddleName = "Z",
-                                            LastName = "Jonas",
-                                            Street = "423 Zebas St.",
-                                            City = "Las Vegas",
-                                            State = "NV",
-                                            Zip="89123",
-                                            DriverLicenseNumber = "J2KJ2KJ3K",
-                                            DriverLicenseState = "NV",
-                                            Dob = new DateTime (1949, 4, 2)
-                                        }
-                                },
-                                new Actor
-                                {
-                                    Type = "Pedestrian",
-                                    OwnerSameAsDriver = true,
-                                    Driver = new DriverInfo
-                                        {
-                                            FirstName = "Jenny",
-                                            MiddleName = "Z",
-                                            LastName = "Xamarin",
-                                            Street = "331 Main St.",
-                                            City = "Las Vegas",
-                                            State = "NV",
-                                            Zip = "89129",
-                                            Dob = new DateTime(1990, 12, 3),
-                                        }
-                                }
-                        }
-                };
-        }
-
         private static OwnerInfo GetOwnerInfoFromDlData(DlBarCodeData dlData)
         {
             return new OwnerInfo
@@ -227,23 +167,6 @@ namespace Ndot.Controllers
                     DriverLicenseNumber = dlData.DriverLicenseNumber,
                     DriverLicenseState = dlData.DriverLicenseState,
                     Dob = dlData.Dob
-                };
-        }
-
-        private static OwnerInfo CopyDriverInfoToOwnerInfo(Actor actor)
-        {
-            return new OwnerInfo
-                {
-                    FirstName = actor.Driver.FirstName,
-                    MiddleName = actor.Driver.MiddleName,
-                    LastName = actor.Driver.LastName,
-                    Street = actor.Driver.Street,
-                    City = actor.Driver.City,
-                    State = actor.Driver.State,
-                    Zip = actor.Driver.Zip,
-                    DriverLicenseNumber = actor.Driver.DriverLicenseNumber,
-                    DriverLicenseState = actor.Driver.DriverLicenseState,
-                    Dob = actor.Driver.Dob
                 };
         }
 

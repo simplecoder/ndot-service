@@ -1,41 +1,86 @@
 ﻿@model List<Ndot.Models.Sr1FormData>
-
+<div style="padding: 10px 15px; font: 15px Tahoma bold; color: white; background-color: black; border-bottom: 2px solid #acacac">
+    LIVE INCIDENT REPORTS
+</div>
 <div id="map-canvas" />
-
-
 
 @section HeadScripts {
     <script type="text/javascript"
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDUqiIvhxiT8znW80ZnJckV78B3zftp0mQ&sensor=false">
-    </script>
-
-    <script type="text/javascript">
-        function initialize() {
-            var mapOptions = {
-                center: new google.maps.LatLng(36.106364, -115.138871),
-                zoom: 12
-            };
-            var map = new google.maps.Map(document.getElementById("map-canvas"),
-                mapOptions);
-            
-            @foreach (var sr1Form in Model)
-            {
-                <text>
-                var marker = new google.maps.Marker({
-                    position: new google.maps.LatLng(@sr1Form.Latitude, @sr1Form.Longitude),
-                    title: "@sr1Form.Street"
-                });
-                marker.setMap(map);
-                </text>
-            }
-        }
-        google.maps.event.addDomListener(window, 'load', initialize);
+            src="https://maps.googleapis.com/maps/api/js?key=@ViewBag.GoogleMapsApiKey&sensor=false">
     </script>
     
     <style type="text/css">
         html { height: 100% }
         body { height: 100%; margin: 0; padding: 0 }
     </style>
-
 }
 
+@section Scripts {
+    <script src="~/Scripts/jquery.signalR-2.0.1.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script type="text/javascript">
+        function initialize() {
+
+            var incident = $.connection.incidentsHub;
+            incident.client.addNewMarkerToPage = function(latitude, longitude, street, date, actorCount) {
+                var contentString = '<div> <b>Street:</b>' + street +
+                    '</div><div> <b>Date:</b>' + date +
+                    '</div><div> <b>Actor Count:</b>' + actorCount + '</div>';
+                var infoWindow = new google.maps.InfoWindow({
+                    content: contentString
+                });
+                var marker = new google.maps.Marker({
+                    position: new google.maps.LatLng(latitude, longitude),
+                    title: street,
+                    map: map
+                });
+                marker.setAnimation(google.maps.Animation.BOUNCE);
+                setTimeout(function() {
+                    marker.setAnimation(null);
+                }, 5000);
+                google.maps.event.addListener(marker, 'click', function() {
+                    infoWindow.open(map, marker);
+                });
+            };
+            $.connection.hub.start();
+
+            var mapOptions = {
+                center: new google.maps.LatLng(36.106364, -115.138871),
+                zoom: 12
+            };
+            var map = new google.maps.Map(document.getElementById("map-canvas"), mapOptions);
+            @{
+                var fCount = 0;
+            }
+            var data = new Array();
+            @foreach (var sr1Form in Model)
+            {
+
+                <text>
+                
+                var obj = {};
+                obj['contentString'] = '<div> <b>Street:</b> @sr1Form.Street </div>'+
+                    '<div> <b>Date:</b> @sr1Form.CreatedDate </div>' +
+                    '<div> <b>Actor Count:</b> @sr1Form.Actors.Count </div>';
+                obj['infoWindow'] = new google.maps.InfoWindow({
+                    content: obj['contentString']
+                });
+                obj['marker'] = new google.maps.Marker({
+                    position: new google.maps.LatLng(@sr1Form.Latitude, @sr1Form.Longitude),
+                    map: map,
+                    title: "@sr1Form.Street"
+                });
+                google.maps.event.addListener(obj['marker'], 'click', function() {
+                    var obj = data[@fCount];
+                    obj['infoWindow'].open(map, obj['marker']);
+                });
+                data.push(obj);
+                
+                </text>
+                fCount++;
+            }
+        }
+
+        google.maps.event.addDomListener(window, 'load', initialize);
+    </script>
+}
