@@ -33,13 +33,9 @@ namespace Ndot.Controllers
                 reader.Options.TryHarder = true;
                 reader.Options.PossibleFormats = new List<BarcodeFormat> {BarcodeFormat.PDF_417};
                 var byteArray = Convert.FromBase64String(image);
-                var a = Image.FromStream(new MemoryStream(byteArray));
-                var bmp = (Bitmap) a ;
-                /*bmp.Save(Guid.NewGuid() + ".jpg",ImageFormat.Jpeg);*/
-                a.Save(Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(), Guid.NewGuid() + ".jpg"),
-                       ImageFormat.Jpeg);
+                var img = Image.FromStream(new MemoryStream(byteArray));
+                var bmp = (Bitmap) img ;
                 barCodeDecoderResult = reader.Decode(bmp);
-
                 validationResult = barCodeDecoderResult != null;
             }
             catch (Exception e)

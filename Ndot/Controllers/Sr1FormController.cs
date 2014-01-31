@@ -48,8 +48,7 @@ namespace Ndot.Controllers
         {
             _logger.Write("New Form Received");
             Sr1FormData form = null;
-            try
-            {
+           
                 ValidateClientFormData(clientFormData);
 
                 form = new Sr1FormData
@@ -77,12 +76,12 @@ namespace Ndot.Controllers
                     if (!String.IsNullOrEmpty(clientActor.DlBarCode))
                     {
                         var byteArray = Convert.FromBase64String(clientActor.DlBarCode);
-                        var a = Image.FromStream(new MemoryStream(byteArray));
-                        a.Save(
+                        var img = Image.FromStream(new MemoryStream(byteArray));
+/*                        img.Save(
                             Path.Combine(AppDomain.CurrentDomain.GetData("DataDirectory").ToString(),
                                          Guid.NewGuid() + ".jpg"),
-                            ImageFormat.Jpeg);
-                        var bmp = (Bitmap) a;
+                            ImageFormat.Jpeg);*/
+                        var bmp = (Bitmap) img;
 
                         var barCodeDecoderResult = reader.Decode(bmp);
                         if (barCodeDecoderResult != null)
@@ -123,11 +122,7 @@ namespace Ndot.Controllers
                 var hubContext = GlobalHost.ConnectionManager.GetHubContext<IncidentsHub>();
                 hubContext.Clients.All.addNewMarkerToPage(form.Latitude, form.Longitude, 
                     form.Street, form.CreatedDate.ToString(), form.Actors.Count);
-            }
-            catch (Exception e)
-            {
-                _logger.Write(String.Format("Some Error occurred in Sr1FormController. Exception: {0}", e));
-            }
+            
 
             var response = Request.CreateResponse(HttpStatusCode.Created, form);
             var url = Url.Link("DefaultApi", new {id = form.Id});
